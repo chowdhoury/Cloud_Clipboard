@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileText, Image, File, Copy, Check } from 'lucide-react';
-import { saveItem, generateCode } from '../utils/storage';
+import { uploadFile, uploadText } from '../utils/api';
 import { UploadResponse } from '../types';
 
 interface UploadSectionProps {
@@ -49,50 +49,43 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onUploadSuccess })
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const code = generateCode();
-      
-      const item = saveItem({
-        code,
-        type: 'file',
-        content,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-      });
-
-      setUploadResult({
-        success: true,
-        code: item.code,
-        message: 'File uploaded successfully!'
-      });
-      
-      onUploadSuccess(item.code);
-    };
-    reader.readAsDataURL(file);
+    uploadFile(file).then(response => {
+      if (response.success && response.data) {
+        setUploadResult({
+          success: true,
+          code: response.data.code,
+          message: 'File uploaded successfully!'
+        });
+        onUploadSuccess(response.data.code);
+      } else {
+        setUploadResult({
+          success: false,
+          message: response.message || 'Upload failed'
+        });
+      }
+    });
   };
 
   const handleTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!textContent.trim()) return;
 
-    const code = generateCode();
-    const item = saveItem({
-      code,
-      type: 'text',
-      content: textContent,
+    uploadText(textContent).then(response => {
+      if (response.success && response.data) {
+        setUploadResult({
+          success: true,
+          code: response.data.code,
+          message: 'Text saved successfully!'
+        });
+        setTextContent('');
+        onUploadSuccess(response.data.code);
+      } else {
+        setUploadResult({
+          success: false,
+          message: response.message || 'Save failed'
+        });
+      }
     });
-
-    setUploadResult({
-      success: true,
-      code: item.code,
-      message: 'Text saved successfully!'
-    });
-    
-    setTextContent('');
-    onUploadSuccess(item.code);
   };
 
   const copyToClipboard = async (text: string) => {

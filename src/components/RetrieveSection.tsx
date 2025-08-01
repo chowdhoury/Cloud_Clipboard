@@ -1,37 +1,55 @@
 import React, { useState } from 'react';
 import { Search, Download, Eye, Clock, FileText, Image, File } from 'lucide-react';
-import { findItemByCode, formatTimeRemaining, formatFileSize } from '../utils/storage';
-import { StoredItem } from '../types';
+import { retrieveContent, downloadFile } from '../utils/api';
+import { formatTimeRemaining, formatFileSize } from '../utils/storage';
 
+interface RetrievedItem {
+  type: 'text' | 'file';
+  content?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
+  fileUrl?: string;
+  expiresAt: number;
+}
 export const RetrieveSection: React.FC = () => {
   const [code, setCode] = useState('');
-  const [item, setItem] = useState<StoredItem | null>(null);
+  const [item, setItem] = useState<RetrievedItem | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim()) return;
 
-    const foundItem = findItemByCode(code.toUpperCase());
-    if (foundItem) {
-      setItem(foundItem);
-      setNotFound(false);
-      setShowPreview(false);
-    } else {
-      setItem(null);
-      setNotFound(true);
-    }
+    setLoading(true);
+    retrieveContent(code.toUpperCase()).then(response => {
+      setLoading(false);
+      if (response.success && response.data) {
+        setItem(response.data);
+        setNotFound(false);
+        setShowPreview(false);
+      } else {
+        setItem(null);
+        setNotFound(true);
+      }
+    });
   };
 
-  const downloadFile = (item: StoredItem) => {
-    if (item.type === 'file' && item.fileName) {
-      const link = document.createElement('a');
-      link.href = item.content;
-      link.download = item.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  const handleDownload = async (item: RetrievedItem) => {
+    if (item.type === 'file') {
+      const blob = await downloadFile(code);
+      if (blob && item.fileName) {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = item.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
     }
   };
 
@@ -43,7 +61,7 @@ export const RetrieveSection: React.FC = () => {
     return <File className="h-6 w-6 text-gray-500" />;
   };
 
-  const canPreview = (item: StoredItem) => {
+  const canPreview = (item: RetrievedItem) => {
     if (item.type === 'text') return true;
     if (item.type === 'file' && item.fileType?.startsWith('image/')) return true;
     return false;
@@ -69,9 +87,10 @@ export const RetrieveSection: React.FC = () => {
             />
             <button
               type="submit"
+              disabled={loading}
               className="px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors font-medium"
             >
-              Search
+              {loading ? 'Searching...' : 'Search'}
             </button>
           </div>
         </form>
@@ -122,7 +141,7 @@ export const RetrieveSection: React.FC = () => {
                 
                 {item.type === 'file' && (
                   <button
-                    onClick={() => downloadFile(item)}
+                    onClick={() => handleDownload(item)}
                     className="flex-1 py-2 px-4 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center justify-center space-x-2"
                   >
                     <Download className="h-4 w-4" />
@@ -143,7 +162,7 @@ export const RetrieveSection: React.FC = () => {
                 ) : item.fileType?.startsWith('image/') ? (
                   <div className="text-center">
                     <img
-                      src={item.content}
+                      src={item.fileUrl || item.content}
                       alt={item.fileName}
                       className="max-w-full max-h-60 rounded-lg mx-auto"
                     />

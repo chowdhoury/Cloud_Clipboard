@@ -2,19 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { UploadSection } from './components/UploadSection';
 import { RetrieveSection } from './components/RetrieveSection';
-import { cleanupExpiredItems } from './utils/storage';
 
 function App() {
   const [activeTab, setActiveTab] = useState<'upload' | 'retrieve'>('upload');
-
-  useEffect(() => {
-    // Clean up expired items on app load
-    cleanupExpiredItems();
-    
-    // Set up periodic cleanup every minute
-    const interval = setInterval(cleanupExpiredItems, 60000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleUploadSuccess = (code: string) => {
     // Could show a success animation or redirect to retrieve tab
@@ -40,7 +30,7 @@ function App() {
           <footer className="mt-16 text-center text-white/40 text-sm">
             <p>
               Files and text are automatically deleted after 24 hours. 
-              This demo uses browser storage - in production, use a secure backend.
+              All content is securely stored on our servers with automatic cleanup.
             </p>
           </footer>
         </div>
